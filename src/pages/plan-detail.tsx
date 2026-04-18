@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ChevronLeft, Play, Plus } from 'lucide-react';
 
 import { Modal } from '@/components/modal';
 import type { Exercise, PlanDay, PlanExercise } from '@/db/schema';
@@ -12,6 +12,7 @@ import {
   usePlanDayExercises,
   usePlanDays,
 } from '@/hooks/use-plans';
+import { useCurrentWorkout, useStartWorkout } from '@/hooks/use-workouts';
 
 export function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -141,8 +142,25 @@ function DayCard({ day }: { day: PlanDay }) {
   const items = usePlanDayExercises(day.id);
   const exercises = useExercises();
   const addExercise = useAddPlanExercise();
+  const startWorkout = useStartWorkout();
+  const current = useCurrentWorkout();
+  const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
+
+  function handleStart() {
+    if (current.data) {
+      const ok = window.confirm(
+        'Es läuft bereits ein Workout. Zum laufenden Workout wechseln?',
+      );
+      if (ok) navigate('/workout');
+      return;
+    }
+    startWorkout.mutate(
+      { planDayId: day.id },
+      { onSuccess: () => navigate('/workout') },
+    );
+  }
 
   const byId = useMemo(() => {
     const map = new Map<string, Exercise>();
@@ -154,14 +172,25 @@ function DayCard({ day }: { day: PlanDay }) {
     <li className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">{day.name}</h3>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Übung
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Übung
+          </button>
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={(items.data?.length ?? 0) === 0 || startWorkout.isPending}
+            className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          >
+            <Play className="h-3.5 w-3.5" />
+            Starten
+          </button>
+        </div>
       </div>
 
       {(items.data?.length ?? 0) === 0 ? (

@@ -60,6 +60,10 @@ export const plansRepo = {
     return db.planDays.where('planId').equals(planId).sortBy('dayIndex');
   },
 
+  async getDay(planDayId: string): Promise<PlanDay | undefined> {
+    return db.planDays.get(planDayId);
+  },
+
   async addDay(input: PlanDayInput): Promise<PlanDay> {
     const row: PlanDay = {
       id: newId(),

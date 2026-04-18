@@ -11,6 +11,7 @@ export const queryKeys = {
     list: () => [...queryKeys.plans.all, 'list'] as const,
     detail: (id: string) => [...queryKeys.plans.all, 'detail', id] as const,
     days: (planId: string) => [...queryKeys.plans.all, 'days', planId] as const,
+    day: (planDayId: string) => [...queryKeys.plans.all, 'day', planDayId] as const,
     dayExercises: (planDayId: string) =>
       [...queryKeys.plans.all, 'dayExercises', planDayId] as const,
   },

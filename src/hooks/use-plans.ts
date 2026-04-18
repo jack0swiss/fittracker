@@ -31,6 +31,14 @@ export function usePlanDays(planId: string | undefined) {
   });
 }
 
+export function usePlanDay(planDayId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.plans.day(planDayId ?? ''),
+    queryFn: () => (planDayId ? plansRepo.getDay(planDayId) : undefined),
+    enabled: !!planDayId,
+  });
+}
+
 export function usePlanDayExercises(planDayId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.plans.dayExercises(planDayId ?? ''),
