@@ -26,7 +26,7 @@ const navItems: NavItem[] = [
 export function Layout() {
   return (
     <div className="flex min-h-full flex-col lg:flex-row">
-      <aside className="hidden border-r border-border lg:flex lg:w-60 lg:flex-col lg:gap-2 lg:p-4">
+      <aside aria-label="Seitennavigation" className="hidden border-r border-border lg:flex lg:w-60 lg:flex-col lg:gap-2 lg:p-4">
         <div className="mb-6 px-2 text-lg font-semibold tracking-tight">
           FitTracker
         </div>

@@ -15,7 +15,7 @@ import { useExercises } from '@/hooks/use-exercises';
 import { useLastSetsForExercise } from '@/hooks/use-workouts';
 import type { Exercise, ExerciseCategory } from '@/db/schema';
 import { sessionsForExercise, shouldDeload, type SessionPoint } from '@/lib/e1rm';
-import { cn, formatDateCH } from '@/lib/utils';
+import { cn, formatDateCH, formatKg } from '@/lib/utils';
 
 const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   chest: 'Brust',
@@ -120,14 +120,14 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
     );
   }
 
-  const currentBest = sessions[sessions.length - 1].bestE1rm;
+  const currentBest = sessions.at(-1)!.bestE1rm;
   const allTimePr = Math.max(...sessions.map((s) => s.bestE1rm));
 
   return (
     <div className="space-y-4">
       {deload && <DeloadAlert />}
 
-      <SummaryCards current={currentBest} pr={allTimePr} sessions={sessions.length} />
+      <SummaryCards current={currentBest} pr={allTimePr} count={sessions.length} />
 
       <div className="rounded-lg border border-border bg-card p-4">
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -158,17 +158,17 @@ function DeloadAlert() {
 function SummaryCards({
   current,
   pr,
-  sessions,
+  count,
 }: {
   current: number;
   pr: number;
-  sessions: number;
+  count: number;
 }) {
   return (
     <div className="grid grid-cols-3 gap-3">
-      <StatCard label="Aktuell" value={`${current.toFixed(1)} kg`} />
-      <StatCard label="PR" value={`${pr.toFixed(1)} kg`} highlight />
-      <StatCard label="Sessions" value={String(sessions)} />
+      <StatCard label="Aktuell" value={formatKg(current)} />
+      <StatCard label="PR" value={formatKg(pr)} highlight />
+      <StatCard label="Sessions" value={String(count)} />
     </div>
   );
 }
@@ -208,7 +208,7 @@ interface ChartDatum {
 function E1rmChart({ sessions }: { sessions: SessionPoint[] }) {
   const data: ChartDatum[] = sessions.map((s) => ({
     date: s.date,
-    e1rm: parseFloat(s.bestE1rm.toFixed(2)),
+    e1rm: Math.round(s.bestE1rm * 10) / 10,
     isPr: s.isPr,
   }));
 
@@ -227,7 +227,7 @@ function E1rmChart({ sessions }: { sessions: SessionPoint[] }) {
           minTickGap={40}
         />
         <YAxis
-          tickFormatter={(v: number) => `${v}`}
+          tickFormatter={(v: number) => v.toLocaleString('de-CH')}
           tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
           tickLine={false}
           axisLine={false}
@@ -268,7 +268,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { paylo
     <div className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-sm">
       <p className="text-muted-foreground">{formatDateCH(new Date(d.date))}</p>
       <p className="font-mono font-medium">
-        {d.e1rm} kg
+        {formatKg(d.e1rm)}
         {d.isPr && <span className="ml-1.5 text-primary">PR</span>}
       </p>
     </div>
@@ -290,7 +290,7 @@ function SessionHistory({ sessions }: { sessions: SessionPoint[] }) {
           >
             <span className="text-muted-foreground">{formatDateCH(new Date(s.date))}</span>
             <span className="flex items-center gap-2 font-mono tabular-nums">
-              {s.bestE1rm.toFixed(1)} kg
+              {formatKg(s.bestE1rm)}
               {s.maxRpe != null && (
                 <span className="text-xs text-muted-foreground">RPE {s.maxRpe}</span>
               )}

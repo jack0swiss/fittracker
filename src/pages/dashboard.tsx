@@ -2,15 +2,13 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { formatDateCH, formatKg } from '@/lib/utils';
 
-const today = new Date();
-
 export function DashboardPage() {
   return (
     <div className="space-y-8">
       <header className="flex items-baseline justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Hoi Jack</h1>
-          <p className="text-sm text-muted-foreground">{formatDateCH(today)}</p>
+          <p className="text-sm text-muted-foreground">{formatDateCH(new Date())}</p>
         </div>
       </header>
 
