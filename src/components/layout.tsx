@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InstallPrompt } from '@/components/install-prompt';
 
 interface NavItem {
   to: string;
@@ -51,7 +52,8 @@ export function Layout() {
       </aside>
 
       <main className="flex-1 pb-20 lg:pb-0">
-        <div className="mx-auto max-w-3xl px-4 pt-6 lg:pt-10">
+        <div className="mx-auto max-w-3xl space-y-4 px-4 pt-6 lg:pt-10">
+          <InstallPrompt />
           <Outlet />
         </div>
       </main>
