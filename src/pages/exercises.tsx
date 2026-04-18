@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Search, Star } from 'lucide-react';
+import { Pencil, Plus, Search, Star, Trash2 } from 'lucide-react';
 
-import { useExercises } from '@/hooks/use-exercises';
+import { ExerciseForm } from '@/components/exercise-form';
+import { Modal } from '@/components/modal';
+import type { ExerciseInput } from '@/db/repos/exercises';
 import type { Exercise, ExerciseCategory } from '@/db/schema';
-import { cn } from '@/lib/utils';
+import {
+  useCreateExercise,
+  useDeleteExercise,
+  useExercises,
+  useUpdateExercise,
+} from '@/hooks/use-exercises';
 
 const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
   chest: 'Brust',
@@ -25,12 +32,19 @@ const CATEGORY_ORDER: ExerciseCategory[] = [
   'full-body',
 ];
 
+type EditorState = { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; ex: Exercise };
+
 export function ExercisesPage() {
   const { data, isLoading, error } = useExercises();
+  const create = useCreateExercise();
+  const update = useUpdateExercise();
+  const remove = useDeleteExercise();
+
   const [query, setQuery] = useState('');
+  const [editor, setEditor] = useState<EditorState>({ mode: 'closed' });
 
   const grouped = useMemo(() => {
-    const rows = filter(data ?? [], query);
+    const rows = filterExercises(data ?? [], query);
     const map = new Map<ExerciseCategory, Exercise[]>();
     for (const cat of CATEGORY_ORDER) map.set(cat, []);
     for (const row of rows) map.get(row.category)?.push(row);
@@ -42,11 +56,35 @@ export function ExercisesPage() {
     [grouped],
   );
 
+  function handleSubmit(input: ExerciseInput) {
+    if (editor.mode === 'create') {
+      create.mutate(input, { onSuccess: () => setEditor({ mode: 'closed' }) });
+    } else if (editor.mode === 'edit') {
+      update.mutate(
+        { id: editor.ex.id, patch: input },
+        { onSuccess: () => setEditor({ mode: 'closed' }) },
+      );
+    }
+  }
+
+  function handleDelete(ex: Exercise) {
+    const ok = window.confirm(`„${ex.name}" löschen?`);
+    if (!ok) return;
+    remove.mutate(ex.id);
+  }
+
   return (
     <div className="space-y-6">
-      <header className="flex items-baseline justify-between">
+      <header className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Übungen</h1>
-        <span className="text-xs text-muted-foreground">{totalVisible}</span>
+        <button
+          type="button"
+          onClick={() => setEditor({ mode: 'create' })}
+          className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+        >
+          <Plus className="h-4 w-4" />
+          Neu
+        </button>
       </header>
 
       <label className="relative block">
@@ -69,9 +107,12 @@ export function ExercisesPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Wird geladen …</p>
       ) : totalVisible === 0 ? (
-        <EmptyState query={query} />
+        <EmptyState query={query} onCreate={() => setEditor({ mode: 'create' })} />
       ) : (
         <div className="space-y-5">
+          <p className="text-xs text-muted-foreground">
+            {totalVisible} {totalVisible === 1 ? 'Übung' : 'Übungen'}
+          </p>
           {CATEGORY_ORDER.map((cat) => {
             const items = grouped.get(cat) ?? [];
             if (items.length === 0) return null;
@@ -82,8 +123,39 @@ export function ExercisesPage() {
                 </h2>
                 <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
                   {items.map((ex) => (
-                    <li key={ex.id}>
-                      <ExerciseRow exercise={ex} />
+                    <li
+                      key={ex.id}
+                      className="flex items-center justify-between px-4 py-3 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{ex.name}</span>
+                        {ex.isCompound && (
+                          <Star
+                            className="h-3.5 w-3.5 fill-primary text-primary"
+                            aria-label="Grundübung"
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="mr-2 text-xs text-muted-foreground">
+                          {ex.equipment ?? '—'}
+                        </span>
+                        <IconButton
+                          label="Bearbeiten"
+                          onClick={() => setEditor({ mode: 'edit', ex })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </IconButton>
+                        {ex.userId !== null && (
+                          <IconButton
+                            label="Löschen"
+                            onClick={() => handleDelete(ex)}
+                            danger
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </IconButton>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -92,46 +164,80 @@ export function ExercisesPage() {
           })}
         </div>
       )}
+
+      <Modal
+        open={editor.mode !== 'closed'}
+        onClose={() => setEditor({ mode: 'closed' })}
+        title={editor.mode === 'edit' ? 'Übung bearbeiten' : 'Neue Übung'}
+      >
+        {editor.mode !== 'closed' && (
+          <ExerciseForm
+            initial={editor.mode === 'edit' ? editor.ex : undefined}
+            onSubmit={handleSubmit}
+            onCancel={() => setEditor({ mode: 'closed' })}
+            submitting={create.isPending || update.isPending}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
 
-function filter(all: Exercise[], query: string): Exercise[] {
+function filterExercises(all: Exercise[], query: string): Exercise[] {
   const q = query.trim().toLowerCase();
   if (!q) return all;
   return all.filter((e) => e.name.toLowerCase().includes(q));
 }
 
-function ExerciseRow({ exercise }: { exercise: Exercise }) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        'flex w-full items-center justify-between px-4 py-3 text-left text-sm',
-        'hover:bg-accent',
-      )}
-    >
-      <span className="flex items-center gap-2">
-        {exercise.name}
-        {exercise.isCompound && (
-          <Star className="h-3.5 w-3.5 fill-primary text-primary" aria-label="Grundübung" />
-        )}
-      </span>
-      <span className="text-xs text-muted-foreground">
-        {exercise.equipment ?? '—'}
-      </span>
-    </button>
-  );
-}
-
-function EmptyState({ query }: { query: string }) {
+function EmptyState({
+  query,
+  onCreate,
+}: {
+  query: string;
+  onCreate: () => void;
+}) {
   return (
     <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
       {query ? (
         <>Keine Übung mit „{query}" gefunden.</>
       ) : (
-        <>Noch keine Übungen. Beim ersten Start werden Standard-Übungen geseedet.</>
+        <>
+          Noch keine Übungen.{' '}
+          <button
+            type="button"
+            onClick={onCreate}
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Eine anlegen
+          </button>
+          .
+        </>
       )}
     </div>
+  );
+}
+
+function IconButton({
+  children,
+  label,
+  onClick,
+  danger,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent ${
+        danger ? 'hover:text-destructive' : 'hover:text-foreground'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
