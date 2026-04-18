@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ThemeProvider } from '@/components/theme-provider';
 import { App } from '@/App';
+import { seedIfEmpty } from '@/db';
 import '@/index.css';
 
 const queryClient = new QueryClient({
@@ -16,6 +17,9 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Fire-and-forget: seed global exercises on first run.
+seedIfEmpty().catch((err) => console.error('[seed]', err));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
