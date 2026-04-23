@@ -15,6 +15,24 @@ export function useWorkouts(limit = 50) {
   });
 }
 
+export function useLastCompletedWorkout() {
+  return useQuery({
+    queryKey: [...queryKeys.workouts.all, 'lastCompleted'],
+    queryFn: () => workoutsRepo.lastCompleted(),
+  });
+}
+
+export function useWeekStats(weekStart: number, weekEnd: number) {
+  return useQuery({
+    queryKey: [...queryKeys.workouts.all, 'weekStats', weekStart, weekEnd],
+    queryFn: async () => {
+      const workouts = await workoutsRepo.completedInRange(weekStart, weekEnd);
+      const volume = await workoutsRepo.volumeOfWorkouts(workouts.map((w) => w.id));
+      return { workouts: workouts.length, volumeKg: volume };
+    },
+  });
+}
+
 export function useCurrentWorkout() {
   return useQuery({
     queryKey: queryKeys.workouts.current(),

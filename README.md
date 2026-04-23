@@ -66,8 +66,8 @@ Phase 1 – MVP (lokal). Siehe `docs/04-ROADMAP.md`.
 
 Reine Produkt-Tasks, keine Architektur-Änderungen mehr nötig:
 
-- [ ] **Deployment** – Vercel oder Netlify, damit die App von überall (und als installierbare PWA) erreichbar ist. HTTPS ist Pflicht für Service-Worker / Install-Prompt.
-- [ ] **Dashboard mit echten Daten** – aktuell zeigt `src/pages/dashboard.tsx` Mock-Werte (Workouts diese Woche, Vitalwerte, letztes Workout). Soll an Dexie-Daten via React-Query verdrahtet werden.
+- [ ] **Deployment** – Lovable, Vercel oder Netlify, damit die App von überall (und als installierbare PWA) erreichbar ist. HTTPS ist Pflicht für Service-Worker / Install-Prompt.
+- [x] **Dashboard mit echten Daten** – liest Wochen-Stats (Workouts + Volumen), aktives Workout, letztes Workout und neueste Körperwerte aus Dexie.
 - [ ] **Workout-Historie** – Liste vergangener Workouts (Datum, Plan-Tag, #Sätze, Dauer) mit Tap → Detail-Ansicht. Daten liegen schon in `workoutsRepo.list()`.
 - [ ] **Plan-Übungen Drag-Reorder** – aus M4 verschoben. `react-dnd` oder `@dnd-kit/core`.
 - [ ] **Exercise-Notes editierbar** – Feld existiert im Schema, UI fehlt.
@@ -81,13 +81,42 @@ Siehe `docs/04-ROADMAP.md`. Kurz:
 - Magic-Link-Auth + Offline-Sync (Dexie ↔ Supabase).
 - Withings + Google Health Connect als erste echte Provider.
 
-## Deployment-Quickstart (Vercel)
+## Deployment
+
+### Option A: Lovable (via GitHub)
+
+1. Code steht schon auf `github.com/jack0swiss/fittracker`, Branch `claude/complete-shared-task-8PZPr`.
+2. Vor dem Deploy: Branch auf `main` mergen (oder direkt mit diesem Branch verknüpfen).
+3. Auf [lovable.dev](https://lovable.dev) → **Import from GitHub** → `jack0swiss/fittracker` wählen.
+4. Build-Settings (falls nicht auto-erkannt):
+   - Build Command: `pnpm build`
+   - Output Directory: `dist`
+   - Install Command: `pnpm install`
+   - Node Version: 20
+5. **Keine Environment Variables nötig** – Phase 1 läuft komplett lokal im Browser (Dexie/IndexedDB).
+
+### Option B: Vercel
 
 ```bash
 pnpm dlx vercel
 ```
 
-Nach dem Prompt liefert Vercel eine `https://...vercel.app`-URL. Auf dem Handy öffnen → „Zum Home-Bildschirm hinzufügen" → läuft offline.
+Vercel erkennt Vite automatisch, Build-Command und Output-Directory sind out-of-the-box korrekt.
+
+### Option C: Netlify
+
+```bash
+pnpm build
+pnpm dlx netlify-cli deploy --prod --dir=dist
+```
+
+### Nach dem Deployment (alle Varianten)
+
+Auf dem Handy die HTTPS-URL öffnen → **Zum Home-Bildschirm hinzufügen** (iOS Safari: Share → Home-Bildschirm · Android Chrome: Menü → App installieren). App läuft dann offline und mit App-Icon.
+
+### Secrets-Status
+
+Das Repo enthält **keine** API-Keys, Tokens oder `.env`-Dateien. Alles ist clientseitig (Dexie). `.gitignore` deckt `.env`, `.env.local`, `.vscode`, `.idea`, `dist` ab. Ab Phase 2 (Supabase) kommen `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` dazu – die werden dann in Lovable/Vercel/Netlify als Environment Variables gesetzt, nicht ins Repo committed.
 
 ## Dokumentation
 

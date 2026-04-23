@@ -1,108 +1,260 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowRight, Dumbbell, Play } from 'lucide-react';
+
+import {
+  useCurrentWorkout,
+  useLastCompletedWorkout,
+  useWeekStats,
+  useWorkoutSets,
+} from '@/hooks/use-workouts';
+import { usePlanDay } from '@/hooks/use-plans';
+import { useLatestMeasurement } from '@/hooks/use-body';
 import { formatDateCH, formatKg } from '@/lib/utils';
 
+const WEEK_TARGET = 4;
+
 export function DashboardPage() {
+  const now = new Date();
+  const { start, end } = currentWeekRange(now);
+  const week = useWeekStats(start, end);
+  const current = useCurrentWorkout();
+  const last = useLastCompletedWorkout();
+
   return (
     <div className="space-y-8">
-      <header className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Hoi Jack</h1>
-          <p className="text-sm text-muted-foreground">{formatDateCH(new Date())}</p>
-        </div>
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">Hoi Jack</h1>
+        <p className="text-sm text-muted-foreground">{formatDateCH(now)}</p>
       </header>
 
-      <section aria-labelledby="today-heading" className="space-y-3">
-        <h2 id="today-heading" className="text-sm font-medium text-muted-foreground">
-          Heute trainieren
-        </h2>
-        <Link
-          to="/workout"
-          className="block rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm transition hover:border-primary"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-lg font-semibold">Push – Tag A</div>
-              <div className="text-sm text-muted-foreground">6 Übungen · ~52 min</div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-primary" />
-          </div>
-        </Link>
-      </section>
+      <TodaySection />
 
       <section aria-labelledby="week-heading" className="space-y-3">
         <h2 id="week-heading" className="text-sm font-medium text-muted-foreground">
           Diese Woche
         </h2>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm">Workouts</span>
-            <span className="text-sm font-medium">3 / 4</span>
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-3/4 bg-primary" />
-          </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <span className="text-sm">Gesamtvolumen</span>
-            <span className="text-sm font-medium">
-              {formatKg(12340, 0)}{' '}
-              <span className="text-primary">+8 %</span>
-            </span>
-          </div>
-        </div>
+        <WeekCard
+          workouts={week.data?.workouts ?? 0}
+          volumeKg={week.data?.volumeKg ?? 0}
+          hasActive={!!current.data}
+        />
       </section>
 
       <section aria-labelledby="vitals-heading" className="space-y-3">
         <h2 id="vitals-heading" className="text-sm font-medium text-muted-foreground">
-          Vitalwerte (heute)
+          Neueste Werte
         </h2>
-        <div className="grid grid-cols-3 gap-3">
-          <VitalTile label="Gewicht" value="74.2" unit="kg" delta={-0.3} />
-          <VitalTile label="HRV" value="58" unit="ms" delta={0} />
-          <VitalTile label="Schritte" value="8 421" unit="" delta={1} />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Mock-Daten · echte Werte ab Phase 2 via Withings / Health Connect.
-        </p>
+        <VitalsGrid />
       </section>
 
       <section aria-labelledby="last-heading" className="space-y-3">
         <h2 id="last-heading" className="text-sm font-medium text-muted-foreground">
           Letztes Workout
         </h2>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <div className="font-medium">Pull – Tag B</div>
-          <div className="text-sm text-muted-foreground">Di, 15.04.2026</div>
-          <div className="mt-3 text-sm">
-            <span className="font-medium text-primary">8 Sätze PR</span> ·
-            <span className="ml-1">+5 kg Kreuzheben</span>
-          </div>
-        </div>
+        {last.data ? (
+          <LastWorkoutCard workoutId={last.data.id} startedAt={last.data.startedAt} />
+        ) : (
+          <EmptyCard text="Noch kein Workout abgeschlossen." />
+        )}
       </section>
     </div>
   );
 }
 
-interface VitalTileProps {
-  label: string;
-  value: string;
-  unit: string;
-  delta: number;
+function TodaySection() {
+  const current = useCurrentWorkout();
+
+  if (current.data) {
+    return (
+      <section aria-labelledby="today-heading" className="space-y-3">
+        <h2 id="today-heading" className="text-sm font-medium text-muted-foreground">
+          Aktives Workout
+        </h2>
+        <Link
+          to="/workout"
+          className="block rounded-lg border border-primary/40 bg-primary/5 p-5 transition hover:border-primary"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              {current.data.planDayId ? (
+                <ActivePlanLabel planDayId={current.data.planDayId} />
+              ) : (
+                <div className="text-lg font-semibold">Freies Workout</div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                Gestartet {formatDateCH(new Date(current.data.startedAt))}
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-primary" />
+          </div>
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="today-heading" className="space-y-3">
+      <h2 id="today-heading" className="text-sm font-medium text-muted-foreground">
+        Heute trainieren
+      </h2>
+      <Link
+        to="/plans"
+        className="block rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm transition hover:border-primary"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-lg font-semibold">Workout starten</div>
+            <div className="text-sm text-muted-foreground">
+              Plan-Tag wählen oder freies Workout loggen
+            </div>
+          </div>
+          <Play className="h-5 w-5 text-primary" />
+        </div>
+      </Link>
+    </section>
+  );
 }
 
-function VitalTile({ label, value, unit, delta }: VitalTileProps) {
+function ActivePlanLabel({ planDayId }: { planDayId: string }) {
+  const day = usePlanDay(planDayId);
+  return <div className="text-lg font-semibold">{day.data?.name ?? 'Plan-Workout'}</div>;
+}
+
+function WeekCard({
+  workouts,
+  volumeKg,
+  hasActive,
+}: {
+  workouts: number;
+  volumeKg: number;
+  hasActive: boolean;
+}) {
+  const target = WEEK_TARGET;
+  const pct = Math.min(100, Math.round((workouts / target) * 100));
+  const displayCount = hasActive ? workouts + 1 : workouts;
+  return (
+    <div className="rounded-lg border border-border bg-card p-5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm">Workouts</span>
+        <span className="text-sm font-medium">
+          {displayCount} / {target}
+          {hasActive && (
+            <span className="ml-1 text-xs text-muted-foreground">(inkl. aktiv)</span>
+          )}
+        </span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full bg-primary transition-[width]"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-4 flex items-baseline justify-between">
+        <span className="text-sm">Gesamtvolumen</span>
+        <span className="text-sm font-medium">
+          {volumeKg > 0 ? formatKg(volumeKg, 0) : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VitalsGrid() {
+  const weight = useLatestMeasurement('weight_kg');
+  const hrv = useLatestMeasurement('hrv_ms');
+  const steps = useLatestMeasurement('steps');
+
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-3">
+        <VitalTile label="Gewicht" row={weight.data} unit="kg" />
+        <VitalTile label="HRV" row={hrv.data} unit="ms" />
+        <VitalTile label="Schritte" row={steps.data} unit="" />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Manuell erfasst unter Körperwerte. Automatischer Sync ab Phase 2.
+      </p>
+    </>
+  );
+}
+
+interface VitalRow {
+  value: number;
+  measuredAt: number;
+}
+
+function VitalTile({
+  label,
+  row,
+  unit,
+}: {
+  label: string;
+  row: VitalRow | undefined;
+  unit: string;
+}) {
+  const formatted = row
+    ? row.value.toLocaleString('de-CH', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+      })
+    : '—';
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className="text-lg font-semibold">{value}</span>
-        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+        <span className="text-lg font-semibold tabular-nums">{formatted}</span>
+        {unit && row && <span className="text-xs text-muted-foreground">{unit}</span>}
       </div>
-      <div className="mt-1 flex items-center gap-1 text-xs">
-        {delta < 0 && <TrendingDown className="h-3 w-3 text-primary" />}
-        {delta > 0 && <TrendingUp className="h-3 w-3 text-primary" />}
-        {delta === 0 && <span className="text-muted-foreground">—</span>}
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        {row ? formatDateCH(new Date(row.measuredAt)) : 'Keine Daten'}
       </div>
     </div>
   );
+}
+
+function LastWorkoutCard({
+  workoutId,
+  startedAt,
+}: {
+  workoutId: string;
+  startedAt: number;
+}) {
+  const sets = useWorkoutSets(workoutId);
+  const count = (sets.data ?? []).filter((s) => !s.isWarmup).length;
+  return (
+    <Link
+      to="/progress"
+      className="block rounded-lg border border-border bg-card p-5 transition hover:border-primary"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-medium">{formatDateCH(new Date(startedAt))}</div>
+          <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Dumbbell className="h-3.5 w-3.5" />
+            {count} {count === 1 ? 'Satz' : 'Sätze'}
+          </div>
+        </div>
+        <ArrowRight className="h-5 w-5 text-primary" />
+      </div>
+    </Link>
+  );
+}
+
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
+      {text}
+    </div>
+  );
+}
+
+/** Monday 00:00 → next Monday 00:00, local time. */
+function currentWeekRange(now: Date): { start: number; end: number } {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const dayIdx = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setDate(d.getDate() - dayIdx);
+  const start = d.getTime();
+  const end = start + 7 * 24 * 60 * 60 * 1000;
+  return { start, end };
 }

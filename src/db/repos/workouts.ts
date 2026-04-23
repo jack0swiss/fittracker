@@ -95,4 +95,31 @@ export const workoutsRepo = {
   async removeSet(id: string): Promise<void> {
     await db.workoutSets.delete(id);
   },
+
+  async completedInRange(from: number, to: number): Promise<Workout[]> {
+    return db.workouts
+      .where('startedAt')
+      .between(from, to)
+      .filter((w) => w.endedAt !== null)
+      .toArray();
+  },
+
+  async lastCompleted(): Promise<Workout | undefined> {
+    return db.workouts
+      .orderBy('startedAt')
+      .reverse()
+      .filter((w) => w.endedAt !== null)
+      .first();
+  },
+
+  async volumeOfWorkouts(workoutIds: string[]): Promise<number> {
+    if (workoutIds.length === 0) return 0;
+    const sets = await db.workoutSets.where('workoutId').anyOf(workoutIds).toArray();
+    let volume = 0;
+    for (const s of sets) {
+      if (s.isWarmup) continue;
+      volume += s.weightKg * s.reps;
+    }
+    return volume;
+  },
 };
